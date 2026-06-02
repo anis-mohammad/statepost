@@ -24,8 +24,9 @@ on:
         type: boolean
         default: false
   schedule:
-    # Every 3 hours. cron is UTC. Adjust frequency as you like.
-    - cron: "0 */3 * * *"
+    # Twice a day at 09:00 and 18:00 UTC. cron is UTC. Add more times to post
+    # more often, e.g. "0 6,12,18 * * *" for three times a day.
+    - cron: "0 9,18 * * *"
 
 # allow the job to push the updated state.json back
 permissions:
