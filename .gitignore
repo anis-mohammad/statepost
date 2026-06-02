@@ -1,0 +1,17 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# generated media (keep the dir, ignore contents)
+output/*
+!output/.gitkeep
+
+# transient staged-Reel file (created between prepare and publish)
+staged.json
+
+# NOTE: state.json is intentionally NOT ignored — it holds the posted-history
+# and rotation/hashtag cursors, and must be committed so they persist in CI.

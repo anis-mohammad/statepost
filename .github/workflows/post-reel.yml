@@ -1,0 +1,104 @@
+name: Post News Reel to Facebook
+
+# Each run rotates across all US sources (src/feeds.py): prepare (clean headline,
+# build the branded card + 3s video, stage it) then publish (caption + rotating
+# hashtags + auto source comment). Dedup + rotation + hashtag cursors live in
+# state.json and are committed back so they persist between scheduled runs.
+#
+# Configure in the repo:
+#   Secrets:  FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Specific article URL (overrides rotation)"
+        required: false
+        default: ""
+      rss:
+        description: "Specific RSS feed (overrides rotation)"
+        required: false
+        default: ""
+      no_post:
+        description: "Generate assets only, do not publish"
+        type: boolean
+        default: false
+  schedule:
+    # Every 3 hours. cron is UTC. Adjust frequency as you like.
+    - cron: "0 */3 * * *"
+
+# allow the job to push the updated state.json back
+permissions:
+  contents: write
+
+# never run two posts at once (would race on state.json)
+concurrency:
+  group: post-reel
+  cancel-in-progress: false
+
+jobs:
+  post-reel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build and post Reel
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          INPUT_URL: ${{ github.event.inputs.url }}
+          INPUT_RSS: ${{ github.event.inputs.rss }}
+          NO_POST: ${{ github.event.inputs.no_post }}
+        run: |
+          set -e
+          # 1) PREPARE: scrape + clean headline + build card/video + stage
+          if [ -n "$INPUT_URL" ]; then
+            python main.py --url "$INPUT_URL" --no-post
+          elif [ -n "$INPUT_RSS" ]; then
+            python main.py --rss "$INPUT_RSS" --no-post
+          else
+            python main.py --rotate
+          fi
+          # 2) PUBLISH the staged Reel (caption + hashtags + auto source comment)
+          if [ "$NO_POST" = "true" ]; then
+            echo "no_post=true → staged only, not publishing."
+          else
+            python main.py --publish
+          fi
+
+      - name: Commit updated rotation/hashtag state
+        if: success()
+        run: |
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "chore: update reel rotation + hashtag state [skip ci]"
+            git push
+          else
+            echo "No state change to commit."
+          fi
+
+      - name: Upload generated media
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-output
+          path: |
+            output/*.png
+            output/*.mp4
+          if-no-files-found: ignore
+          retention-days: 7
