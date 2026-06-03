@@ -24,11 +24,19 @@ on:
         type: boolean
         default: false
   schedule:
-    # Twice a day, ~09:17 and ~18:17 UTC. cron is UTC. We deliberately avoid the
-    # top of the hour (":00") because GitHub heavily delays/drops scheduled runs
-    # at :00 under peak load; an off-hour minute fires far more reliably.
-    # Add more times to post more often, e.g. "17 6,12,18 * * *" for 3x a day.
-    - cron: "17 9,18 * * *"
+    # 5x daily, evenly spread across 6:00 PM → 3:00 AM Bangladesh time (BST = UTC+6).
+    # cron is UTC, so each BD time is -6h. Minutes are kept OFF ":00" on purpose:
+    # GitHub heavily delays/drops scheduled runs at the top of the hour.
+    #   12:10 UTC = 6:10 PM BD
+    #   14:20 UTC = 8:20 PM BD
+    #   16:30 UTC = 10:30 PM BD
+    #   18:40 UTC = 12:40 AM BD (next day)
+    #   20:50 UTC = 2:50 AM BD (next day)
+    - cron: "10 12 * * *"
+    - cron: "20 14 * * *"
+    - cron: "30 16 * * *"
+    - cron: "40 18 * * *"
+    - cron: "50 20 * * *"
 
 # allow the job to push the updated state.json back
 permissions:
