@@ -8,6 +8,16 @@ name: Post News Reel to Facebook
 # Configure in the repo:
 #   Secrets:  FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN
 
+# Triggered externally by cron-job.org (https://console.cron-job.org/), which fires
+# on time — unlike GitHub's built-in `schedule:`, which heavily delays/drops runs.
+# cron-job.org POSTs to the GitHub API workflow_dispatch endpoint 8x daily at
+# 6/8/10 PM and 12/1/2/3/4 AM Asia/Dhaka. To trigger manually, run via the Actions tab.
+#
+#   URL:      https://api.github.com/repos/anis-mohammad/statepost/actions/workflows/post-reel.yml/dispatches
+#   Method:   POST
+#   Body:     {"ref":"main"}
+#   Schedule: 0 18,20,22,0,1,2,3,4 * * *  (timezone Asia/Dhaka)
+#   Auth:   Authorization: Bearer <PAT with Actions:read-write (fine-grained) or `workflow` scope (classic)>
 on:
   workflow_dispatch:
     inputs:
@@ -23,20 +33,6 @@ on:
         description: "Generate assets only, do not publish"
         type: boolean
         default: false
-  schedule:
-    # 5x daily, evenly spread across 6:00 PM → 3:00 AM Bangladesh time (BST = UTC+6).
-    # cron is UTC, so each BD time is -6h. Minutes are kept OFF ":00" on purpose:
-    # GitHub heavily delays/drops scheduled runs at the top of the hour.
-    #   12:10 UTC = 6:10 PM BD
-    #   14:20 UTC = 8:20 PM BD
-    #   16:30 UTC = 10:30 PM BD
-    #   18:40 UTC = 12:40 AM BD (next day)
-    #   20:50 UTC = 2:50 AM BD (next day)
-    - cron: "10 12 * * *"
-    - cron: "20 14 * * *"
-    - cron: "30 16 * * *"
-    - cron: "40 18 * * *"
-    - cron: "50 20 * * *"
 
 # allow the job to push the updated state.json back
 permissions:
